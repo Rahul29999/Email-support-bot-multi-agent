@@ -1,0 +1,410 @@
+{
+  "name": "Email support Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -368,
+        0
+      ],
+      "id": "f6ab2ca4-d85c-4209-945c-2224762b3a8e",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "KM230bZ5aQ9YW0hV",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a customer support AI.\n\nAnalyze the customer email.\n\n{{ $json.snippet }} {{ $json.Subject }}\n\nReturn ONLY valid JSON.\n\nDetect:\n- intent\n- urgency\n- sentiment\n- should_escalate\n- short_summary",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -48,
+        0
+      ],
+      "id": "be2c1e56-6709-406b-92a4-7d4f59d5b9d0",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -48,
+        224
+      ],
+      "id": "c7758098-c476-4331-b25c-b0960582e15a",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.output || \"\";\n\nconst clean = raw\n  .replace(/```json/g, \"\")\n  .replace(/```/g, \"\")\n  .trim();\n\nconst parsed = JSON.parse(clean);\n\nreturn [\n  {\n    json: {\n      intent: parsed.intent || \"\",\n      urgency: parsed.urgency || \"\",\n      sentiment: parsed.sentiment || \"\",\n      should_escalate: parsed.should_escalate || false,\n      short_summary: parsed.short_summary || \"\",\n      reply: parsed.reply || \"\"\n    }\n  }\n];;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        304,
+        0
+      ],
+      "id": "a2bf5cae-1044-4b0c-9694-28bbcfba3a9b",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "fc9cd3ca-a7be-4972-af63-52f4d2885b1c",
+              "leftValue": "={{ $json.should_escalate }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        512,
+        0
+      ],
+      "id": "e2e5fdc4-8bba-46aa-b461-2efe229d2977",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a professional ecommerce customer support agent your name is Niyaz.\n\nWrite a helpful support reply. {{ $json.short_summary }}\n\nRules:\n- Friendly\n- Human tone\n- Short paragraphs\n- Professional\n- Empathetic\n- Never overpromise\n- Under 150 words",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        688,
+        -304
+      ],
+      "id": "fcdbe897-10e6-4506-a24f-2de549a8bde2",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        688,
+        -96
+      ],
+      "id": "3d57ff96-fd8a-4de5-8ec5-0a40d664e093",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Gmail Trigger').item.json.From }}",
+        "subject": "=Re{{ $('Gmail Trigger').item.json.Subject }}",
+        "emailType": "text",
+        "message": "={{ $('AI Agent').item.json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1008,
+        -304
+      ],
+      "id": "04c202c5-8e5d-4082-944c-07fee69ceee3",
+      "name": "Send a message",
+      "webhookId": "363d161a-e8c8-4609-8cf6-9ddab3566ed1",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "KM230bZ5aQ9YW0hV",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "rahulkumarsharma2643@gmail.com",
+        "subject": "={{ $('Gmail Trigger').item.json.Subject }}",
+        "emailType": "text",
+        "message": "Hi Team Escalation,  There has been Escalation from customer on {{ $('Parse AI JSON Response').item.json.intent }} please check and resolve it soon  Regards Customer Support",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1248,
+        -304
+      ],
+      "id": "8ed718f5-921e-473f-b800-2bd297612d1c",
+      "name": "Send a message1",
+      "webhookId": "95555367-1b22-4db2-aac7-334956271e3d",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "KM230bZ5aQ9YW0hV",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a professional ecommerce customer support agent your name is Niyaz.\n\nWrite a helpful support reply. {{ $json.short_summary }}\n\nRules:\n- Friendly\n- Human tone\n- Short paragraphs\n- Professional\n- Empathetic\n- Never overpromise\n- Under 150 words",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        704,
+        224
+      ],
+      "id": "64a48a9f-4872-499f-ad00-7b1cc12f0249",
+      "name": "AI Agent2"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        704,
+        464
+      ],
+      "id": "8d4d5703-037b-415c-9f73-4ea339cc22cd",
+      "name": "OpenAI Chat Model2",
+      "credentials": {
+        "openAiApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Gmail Trigger').item.json.From }}",
+        "subject": "=Re{{ $('Gmail Trigger').item.json.Subject }}",
+        "emailType": "text",
+        "message": "={{ $('AI Agent').item.json.output }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1056,
+        224
+      ],
+      "id": "dee38da0-30b2-401c-9dbf-713335e7c1d2",
+      "name": "Send a message2",
+      "webhookId": "363d161a-e8c8-4609-8cf6-9ddab3566ed1",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "KM230bZ5aQ9YW0hV",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent2": {
+      "main": [
+        [
+          {
+            "node": "Send a message2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "56cca862-a527-46df-838b-b8be254c1093",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "be9ec9f5b3c16aebe4f2b097151065436e402cf909cf74c99c67e6458cfe76aa"
+  },
+  "nodeGroups": [],
+  "id": "rjasO3e2bFYXLNHQ",
+  "tags": []
+}
